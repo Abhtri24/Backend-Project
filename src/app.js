@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-
 const app = express()
 
 app.use(cors({
@@ -17,6 +16,18 @@ app.use(express.urlencoded({extended: true,
 app.use(express.static('public'))
 
 app.use(cookieParser())
+
+
+//routes import
+import userRoutes from './routes/user.routes.js';
+
+// routes declaration
+
+console.log("Registering routes...");
+
+app.use("/api/v1/users",userRoutes)
+console.log("Routes registered: /api/v1/users");
+
 
 
 export {app}
