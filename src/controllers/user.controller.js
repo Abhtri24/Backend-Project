@@ -16,12 +16,13 @@ if(
 ){
     throw new ApiError(400,"All fields are required")
 }
-existingUser = User.findOne({
+ const existingUser = await User.findOne({
     $or:[{email},{username}]
 })
 if(existingUser){
     throw new ApiError(409,"User already exists with email or username")
 }
+console.log(req.files)
   const AvatarlocalPath= req.files?.avatar[0]?.path;
   const CoverImageLocal= req.files?.cover[0]?.path;
 
@@ -51,7 +52,7 @@ if(!createdUser){
  
 }
 
-retrun res.status(201).json(
+return res.status(201).json(
     new ApiResponse(200,createdUser,"User registered successfully")
 )
 
