@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js"; // Assuming controller is separate
+import { registerUser , logoutUser,loginUser} from "../controllers/user.controller.js"; // Assuming controller is separate
 import { upload } from "../middlewares/multer.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 const router = Router();
 
 // Debugging log when route is set
@@ -18,7 +19,10 @@ router.route("/register").post(
     ]),
     registerUser); // Use the controller to handle the logic
 
-// Debugging log when route is initialized
-console.log("User routes initialized: /register");
 
+router.route("/login").post(loginUser)
+
+
+//secured routes
+router.route("/logout").post(verifyJWT,logoutUser)
 export default router;

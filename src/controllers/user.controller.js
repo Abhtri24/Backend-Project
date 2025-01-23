@@ -1,8 +1,27 @@
-import { asyncHandler } from "../utils/asynchandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import {ApiError} from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import {uploadCloudinary} from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiRes.js";
+
+
+const generateAccandRefToken = async(userId)=>{
+    try {
+       const user =  await User.findById(userId)
+        const accToken =  user.generateAccessToken()
+       const refToken =  user.generateRefreshToken()
+
+       user.refreshToken = refToken
+      await user.save({validateBeforeSave:false})
+
+      return {accToken,refToken}
+        
+    } 
+
+    catch (error) {
+        throw new ApiError(500,"Token generation failed")
+    }
+}
 
 const registerUser = asyncHandler(async (req, res) => {
 
@@ -59,7 +78,74 @@ return res.status(201).json(
 
 })
 
+const loginUser = asyncHandler(async (req, res) => {
+    const {email,username,password} = req.body
+    if(!username || !email){
+        throw new ApiError(400,"Username or email is required")
+    }
+    
+   const user =  await User.findOne({
+        $or : [{email},{username}]
+    })
+
+    if(!user){
+        throw new ApiError(404,"User doesnt exist")
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+
+    if(!isPasswordValid){
+        throw new ApiError(401,"Invalid Password")
+    }
+
+ const {accToken , refToken} =   await generateAccandRefToken(user._id)
+
+ const options = {
+    httpOnly : true,
+    secure : true,
+ }
+ return res.status(200)
+ .cookie("accesToken",accToken,options)
+ .cookie("refreshToken",refToken,options)
+ .json(
+    new ApiResponse(
+        200,
+        {
+            user : accToken,refToken
+        },
+        "User logged in successfully"
+    )
+ )
 
 
 
-export { registerUser };
+})
+
+const logoutUser =  asyncHandler(async (req, res) => {
+
+  await User.findByIdAndUpdate(req.user._id,
+        {
+            $set:{
+                refreshToken:undefined 
+            }
+        },
+        {
+            new : true
+        }
+    )
+
+    const options = {
+        httpOnly : true,
+        secure : true,
+       
+    }
+    return res.status(200).clearCookie("accesToken",options)
+    .clearCookie(refreshToken,options)
+    .json(new ApiResponse(200,{},"User logged out"))
+    
+})
+
+
+export { registerUser,
+    loginUser,logoutUser
+ };
