@@ -3,6 +3,7 @@ import {ApiError} from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import {uploadCloudinary} from "../utils/cloudinary.js";
 import {ApiResponse} from "../utils/ApiRes.js";
+import jwt from "jsonwebtoken";
 
 
 const generateAccandRefToken = async(userId)=>{
@@ -80,7 +81,7 @@ return res.status(201).json(
 
 const loginUser = asyncHandler(async (req, res) => {
     const {email,username,password} = req.body
-    if(!username || !email){
+    if(!username && !email){
         throw new ApiError(400,"Username or email is required")
     }
     
@@ -140,12 +141,56 @@ const logoutUser =  asyncHandler(async (req, res) => {
        
     }
     return res.status(200).clearCookie("accesToken",options)
-    .clearCookie(refreshToken,options)
+    .clearCookie("refreshToken",options)
     .json(new ApiResponse(200,{},"User logged out"))
     
 })
 
+const refAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefToken =   req.cookies.refreshToken||req.body.refreshToken
+
+  if(!incomingRefToken){
+      throw new ApiError(401,"Unauthorized")
+  }
+
+  try {
+    const decodedToken =  jwt.verify(
+      incomingRefToken,process.env.REFRESH_TOKEN_SECRET
+    )
+    const user =  await User.findById(decodedToken?._id)
+  
+    if(!user){
+        throw new ApiError(404,"invalid ref token")
+    }
+  
+    if(incomingRefToken!==user?.refreshToken){
+      throw new ApiError(401,"Refresh token is expired or used")
+  
+    }
+  
+    const options = {
+      httpOnly : true,
+      secure : true
+    }
+    const {accToken,newrefToken} = await generateAccandRefToken(user._id) 
+   
+   return res
+   .status(200)
+   .cookie("accesToken",accToken,options)
+   .cookie("refreshToken",newrefToken,options)
+   .json(
+      new ApiResponse(
+          200,
+          {accToken,refToken: newrefToken},
+          "Access token refreshed successfully"
+      )
+   )
+  } catch (error) {
+    throw new ApiError(401,error?.message||"Unauthorized")
+    
+  }
+})
 
 export { registerUser,
-    loginUser,logoutUser
+    loginUser,logoutUser,refAccessToken
  };
